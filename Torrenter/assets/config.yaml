@@ -1,14 +1,14 @@
 # config.yaml
 qBittorrent:
   host: "http://127.0.0.1:8080"
-  username: "admin"
-  password: "6?c]f^@gDZLUN9d7s%Q8"
+  username: ""
+  password: ""
 
 TMDb:
-  api_key: "84147d5f9aa77e54c45cd5b6ceabd0fc"
+  api_key: ""
 
 Jackett:
-  api_key: "wus5y9xap7ix1qwkbe00wbf0ldod24t8"
+  api_key: ""
   server_url: "http://localhost:9117"
   categories:
     Music: "3000"
@@ -17,15 +17,15 @@ Jackett:
 
 
 MicrosoftGraph:
-  client_id: "c8521d4c-a811-4816-b4de-86d240b8487a"
-  tenant_id: "1cb68ff0-8ca0-4b26-a9b9-f49dae9c9b62"
+  client_id: ""
+  tenant_id: ""
   scopes: ["Chat.ReadWrite"]
   cache_file_path: "token_cache.bin"
 
 Jellyfin:
-  server_url: "http://10.252.0.10:8096/"
-  api_key: "75540e451d67481c9c321fb036421d46"
+  server_url: ""
+  api_key: ""
 
 Spotify:
-  client_id: "b3fb8ab712a9449e94e70c77d5ba5426"
-  client_secret: "f6e5c9c048c6453482d3cef2fd74b7ae"
+  client_id: ""
+  client_secret: ""
