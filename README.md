@@ -25,7 +25,7 @@ This repository includes a `setup.py` script to automate the installation and co
 Clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/YourUsername/Phantom-fetch.git
+git clone https://github.com/Matt30098638/Phantom-fetch.git
 cd Phantom-fetch
 ```
 
