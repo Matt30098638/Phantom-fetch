@@ -7,12 +7,13 @@ import yaml
 from qbittorrentapi import Client
 from msal import PublicClientApplication, SerializableTokenCache
 from utils.tmdb_helper import TMDbHelper
-from Movies import download_movie  # Assuming `Movies.py` contains the function download_movie(title)
-from TV import download_tv_show  # Assuming `TV.py` contains the function download_tv_show(title)
-from Teams_Requests import get_access_token, get_messages_from_chat
+from utils.jellyfin_helper import JellyfinHelper
+from Movies import download_movie
+from TV import download_tv_show
+from Teams_Requests import get_access_token, get_filtered_emails, process_requests
 from utils.music_helper import SpotifyHelper, download_music
 
-# Determine the correct path for config.yaml, both for development and packaged runs
+# Determine the correct path for config.yaml
 APPLICATION_PATH = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(APPLICATION_PATH, 'assets', 'config.yaml')
 if not os.path.exists(CONFIG_FILE):
@@ -29,11 +30,14 @@ MUSIC_LIST_PATH = 'E:\\requests\\Music-list.txt'
 LOG_FILE_PATH = os.path.join(APPLICATION_PATH, 'logs', 'app_log.txt')
 MAX_ACTIVE_DOWNLOADS = 15  # Maximum number of concurrent downloads allowed
 
-# Ensure directories and files exist
-os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
-for file_path in [FILMS_LIST_PATH, TV_SHOWS_LIST_PATH, MUSIC_LIST_PATH]:
-    if not os.path.exists(file_path):
-        open(file_path, 'w').close()
+# Jellyfin Configuration
+JELLYFIN_SERVER_URL = config['Jellyfin']['server_url']
+JELLYFIN_API_KEY = config['Jellyfin']['api_key']
+
+# Setting up Helpers
+jellyfin_helper = JellyfinHelper(JELLYFIN_SERVER_URL, JELLYFIN_API_KEY)
+tmdb_helper = TMDbHelper(config_path=CONFIG_FILE)
+spotify_helper = SpotifyHelper(client_id=config['Spotify']['client_id'], client_secret=config['Spotify']['client_secret'])
 
 # qBittorrent Configuration
 qb = Client(
@@ -42,16 +46,34 @@ qb = Client(
     password=config['qBittorrent']['password']
 )
 
-# Setting up Helpers
-tmdb_helper = TMDbHelper(config_path=CONFIG_FILE)
-spotify_helper = SpotifyHelper(client_id=config['Spotify']['client_id'], client_secret=config['Spotify']['client_secret'])
-
 # Log function with size restriction
 def log_message(message):
     if os.path.exists(LOG_FILE_PATH) and os.path.getsize(LOG_FILE_PATH) > 10 * 1024 * 1024:  # Limit 10 MB
         os.remove(LOG_FILE_PATH)
     with open(LOG_FILE_PATH, 'a') as log_file:
         log_file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
+
+
+def get_request_lists():
+    """Retrieve current requests for movies, TV shows, and music from their respective lists."""
+    def read_file(file_path):
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as file:
+                return [line.strip() for line in file if line.strip()]
+        return []
+    
+    movies = read_file(FILMS_LIST_PATH)
+    tv_shows = read_file(TV_SHOWS_LIST_PATH)
+    music = read_file(MUSIC_LIST_PATH)
+    
+    return movies, tv_shows, music
+
+
+# Ensure directories and files exist
+os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
+for file_path in [FILMS_LIST_PATH, TV_SHOWS_LIST_PATH, MUSIC_LIST_PATH]:
+    if not os.path.exists(file_path):
+        open(file_path, 'w').close()
 
 # Backend function to delete a request from the list
 def delete_request(title, list_path):
@@ -78,6 +100,43 @@ def verify_tv_show(title):
 
 def verify_music(title):
     return spotify_helper.verify_music_in_jellyfin(title)
+
+
+# Verification functions for downloaded content using Jellyfin
+def verify_movie(title):
+    return jellyfin_helper.item_exists(title, type="Movie")
+
+def verify_tv_show(title):
+    return jellyfin_helper.item_exists(title, type="Series")
+
+def verify_music(title):
+    return jellyfin_helper.item_exists(title, type="Audio")
+
+
+# Function to retrieve Outlook messages
+def get_outlook_messages():
+    access_token = get_access_token()
+    if not access_token:
+        log_message("Unable to fetch Outlook messages: No valid access token.")
+        return []
+
+    emails = get_filtered_emails(access_token)
+    messages = [f"Subject: {email.get('subject', 'No Subject')}\nPreview: {email.get('bodyPreview', 'No Body Preview')}" for email in emails]
+    return messages
+
+# Function to retrieve current downloads
+def get_current_downloads():
+    try:
+        # Retrieve a list of torrents with 'downloading' status
+        downloading_torrents = qb.torrents_info(status_filter='downloading')
+        download_list = []
+        for torrent in downloading_torrents:
+            progress = round(torrent.progress * 100, 2)  # Format progress as a percentage
+            download_list.append(f"{torrent.name} - {progress}% complete at {torrent.dlspeed / (1024**2):.2f} MB/s")
+        return download_list
+    except Exception as e:
+        log_message(f"Error fetching current downloads: {e}")
+        return ["Error retrieving downloads"]
 
 # Function to manage the round-robin downloading of TV shows, movies, and music
 def manage_downloads():
@@ -130,6 +189,7 @@ def manage_downloads():
 download_management_thread = threading.Thread(target=manage_downloads, daemon=True)
 download_management_thread.start()
 
+# Function to continuously monitor Teams for new requests
 def monitor_teams():
     while True:
         access_token = get_access_token()
@@ -138,15 +198,16 @@ def monitor_teams():
             time.sleep(300)
             continue
 
-        chat_ids = config['MicrosoftGraph'].get('chat_ids', [])
-        for chat_id in chat_ids:
-            messages = get_messages_from_chat(chat_id, access_token)
-            for message in messages:
-                title = message.get('body', {}).get('content', '').strip()
-                if title:
-                    result_message = add_request(title)
-                    log_message(result_message)
+        # Get emails from Teams
+        emails = get_filtered_emails(access_token)
+        process_requests(emails, 
+                         FILMS_LIST_PATH, 
+                         TV_SHOWS_LIST_PATH, 
+                         MUSIC_LIST_PATH,
+                         access_token)
+
         time.sleep(60)  # Monitor every 1 minute
 
+# Start the Teams monitor thread
 teams_monitor_thread = threading.Thread(target=monitor_teams, daemon=True)
 teams_monitor_thread.start()
