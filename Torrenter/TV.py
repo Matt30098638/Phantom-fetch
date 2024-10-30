@@ -5,15 +5,15 @@ import re
 import os
 
 # Setup for TMDb
-TMDB_API_KEY = '84147d5f9aa77e54c45cd5b6ceabd0fc'  # Replace with your TMDb API Key
+TMDB_API_KEY = ''  # Replace with your TMDb API Key
 TMDB_SEARCH_URL = 'https://api.themoviedb.org/3/search/tv'
 TMDB_DETAILS_URL = 'https://api.themoviedb.org/3/tv/{tv_id}'
 
 # Setup for qBittorrent
-qb = Client(host='http://127.0.0.1:8080', username='admin', password='6?c]f^@gDZLUN9d7s%Q8')  # Replace with your credentials
+qb = Client(host='http://127.0.0.1:8080', username='admin', password='')  # Replace with your credentials
 
 # Jackett Configuration
-jackett_api_key = 'wus5y9xap7ix1qwkbe00wbf0ldod24t8'  # Replace with your Jackett API key
+jackett_api_key = ''  # Replace with your Jackett API key
 jackett_url = 'http://localhost:9117/api/v2.0/indexers/all/results'
 
 # Folder Configuration
