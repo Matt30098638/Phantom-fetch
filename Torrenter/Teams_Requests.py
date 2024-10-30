@@ -6,8 +6,8 @@ from bs4 import BeautifulSoup
 from msal import PublicClientApplication, SerializableTokenCache
 
 # Microsoft Graph API Configuration
-CLIENT_ID = 'c8521d4c-a811-4816-b4de-86d240b8487a'         # Replace with your client ID from Azure
-TENANT_ID = '1cb68ff0-8ca0-4b26-a9b9-f49dae9c9b62'         # Replace with your tenant ID from Azure
+CLIENT_ID = ''         # Replace with your client ID from Azure
+TENANT_ID = ''         # Replace with your tenant ID from Azure
 CACHE_FILE_PATH = 'token_cache.bin'                        # Path to save the token cache
 PROCESSED_MESSAGES_FILE = 'processed_messages.json'        # Path to save processed message IDs
 
@@ -15,9 +15,9 @@ AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 SCOPES = ["Mail.Read", "Mail.Send"]
 
 # Paths to request files
-MOVIES_LIST_PATH = 'E:\\requests\\Film-list.txt'
-TV_SHOWS_LIST_PATH = 'E:\\requests\\Tv-Shows.txt'
-MUSIC_LIST_PATH = 'E:\\requests\\Music-list.txt'
+MOVIES_LIST_PATH = '' # Path to central Movie List
+TV_SHOWS_LIST_PATH = '' # Path to central Tv-Shows List
+MUSIC_LIST_PATH = '' # Path to central Music List
 
 # Initialize MSAL PublicClientApplication with persistent token cache
 def load_token_cache():
