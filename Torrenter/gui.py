@@ -1,276 +1,234 @@
-import os
-import tkinter as tk
-from tkinter import scrolledtext, messagebox, ttk, simpledialog
-import threading
+from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QLineEdit, QPushButton, QTextEdit, QCheckBox, QVBoxLayout, QHBoxLayout, QScrollArea, QGroupBox
+import main  # Assuming main.py contains backend logic
+import sys
 import time
-import main  # Assuming main.py contains updated backend logic for Outlook, round-robin, etc.
 
-# GUI Functions to interact with backend (`main.py`)
+class DownloadManagerThread(QtCore.QThread):
+    download_progress_signal = QtCore.pyqtSignal(str)
+    log_message_signal = QtCore.pyqtSignal(str)
 
-# Function to add a new request from GUI
-def add_request():
-    title = entry.get().strip()
-    if not title:
-        messagebox.showwarning("Input Error", "Please enter a title to add.")
-        return
+    def run(self):
+        while True:
+            try:
+                download_info = main.get_current_downloads()
+                self.download_progress_signal.emit("\n".join(download_info))
+            except Exception as e:
+                self.log_message_signal.emit(f"Error fetching downloads: {str(e)}")
+            time.sleep(10)
 
-    result_message = main.add_request(title)
-    scrolled_text.insert(tk.END, f"{result_message}\n")
-    entry.delete(0, tk.END)
-    update_request_lists()
+class OutlookMessagesThread(QtCore.QThread):
+    outlook_message_signal = QtCore.pyqtSignal(str)
 
-# Function to delete selected items from request lists
-def delete_selected_items():
-    for title, var in {**movies_checkboxes, **tv_shows_checkboxes, **music_checkboxes}.items():
-        if var.get():
-            if title in movies_checkboxes:
-                main.delete_request(title, main.FILMS_LIST_PATH)
-            elif title in tv_shows_checkboxes:
-                main.delete_request(title, main.TV_SHOWS_LIST_PATH)
-            elif title in music_checkboxes:
-                main.delete_request(title, main.MUSIC_LIST_PATH)
-    update_request_lists()
+    def run(self):
+        while True:
+            try:
+                messages = main.get_outlook_messages()
+                self.outlook_message_signal.emit("\n".join(messages))
+            except Exception as e:
+                self.outlook_message_signal.emit(f"Error fetching messages: {str(e)}")
+            time.sleep(60)
 
-# Function to edit selected item from request lists
-def edit_selected_item():
-    selected_items = [(title, var) for title, var in {**movies_checkboxes, **tv_shows_checkboxes, **music_checkboxes}.items() if var.get()]
-    
-    if len(selected_items) != 1:
-        messagebox.showwarning("Selection Error", "Please select exactly one item to edit.")
-        return
+class PhantomFetchGUI(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("PhantomFetch")
+        self.setGeometry(200, 100, 1200, 800)
 
-    title, var = selected_items[0]
-    new_title = simpledialog.askstring("Edit Item", f"Edit title for '{title}':")
-    if new_title:
-        # Replace the old title with the new title
-        if title in movies_checkboxes:
-            main.delete_request(title, main.FILMS_LIST_PATH)
-            main.add_request(new_title)
-        elif title in tv_shows_checkboxes:
-            main.delete_request(title, main.TV_SHOWS_LIST_PATH)
-            main.add_request(new_title)
-        elif title in music_checkboxes:
-            main.delete_request(title, main.MUSIC_LIST_PATH)
-            main.add_request(new_title)
-        update_request_lists()
+        # Main layout for widgets
+        main_layout = QVBoxLayout()
 
-# Function to update request lists
-def update_request_lists():
-    # Clear previous checkboxes
-    for widget in movies_scrollable_frame.winfo_children():
-        widget.destroy()
-    for widget in tv_scrollable_frame.winfo_children():
-        widget.destroy()
-    for widget in music_scrollable_frame.winfo_children():
-        widget.destroy()
+        # Entry Section
+        self.entry_input = QLineEdit()
+        self.entry_input.setPlaceholderText("Enter title to add...")
+        self.add_button = QPushButton("Add Request")
+        self.add_button.clicked.connect(self.add_request)
+        
+        entry_layout = QHBoxLayout()
+        entry_layout.addWidget(self.entry_input)
+        entry_layout.addWidget(self.add_button)
+        main_layout.addLayout(entry_layout)
 
-    # Load request lists from `main.py`
-    movies, tv_shows, music = main.get_request_lists()
+        # Edit and Delete Buttons
+        self.edit_button = QPushButton("Edit Selected")
+        self.delete_button = QPushButton("Delete Selected")
+        self.edit_button.clicked.connect(self.edit_selected)
+        self.delete_button.clicked.connect(self.delete_selected)
 
-    # Create checkboxes for movies
-    global movies_checkboxes
-    movies_checkboxes = {}
-    for movie in movies:
-        var = tk.BooleanVar()
-        checkbox = tk.Checkbutton(movies_scrollable_frame, text=movie, variable=var, bg="#f0f0f0", anchor="w")
-        checkbox.pack(fill='x', padx=5, pady=2, anchor='w')
-        movies_checkboxes[movie] = var
+        edit_delete_layout = QHBoxLayout()
+        edit_delete_layout.addWidget(self.edit_button)
+        edit_delete_layout.addWidget(self.delete_button)
+        main_layout.addLayout(edit_delete_layout)
 
-    # Create checkboxes for TV shows
-    global tv_shows_checkboxes
-    tv_shows_checkboxes = {}
-    for tv_show in tv_shows:
-        var = tk.BooleanVar()
-        checkbox = tk.Checkbutton(tv_scrollable_frame, text=tv_show, variable=var, bg="#f0f0f0", anchor="w")
-        checkbox.pack(fill='x', padx=5, pady=2, anchor='w')
-        tv_shows_checkboxes[tv_show] = var
+        # Request Status Textbox
+        self.status_text = QTextEdit()
+        self.status_text.setReadOnly(True)
+        main_layout.addWidget(self.status_text)
 
-    # Create Checkboxes for Music
-    global music_checkboxes
-    music_checkboxes = {}
-    for song in music:
-        var = tk.BooleanVar()
-        checkbox = tk.Checkbutton(music_scrollable_frame, text=song, variable=var, bg="#f0f0f0", anchor="w")
-        checkbox.pack(fill='x', padx=5, pady=2, anchor='w')
-        music_checkboxes[song] = var
+        # Current Downloads Section
+        self.downloads_text = QTextEdit()
+        self.downloads_text.setReadOnly(True)
+        downloads_group = self.create_group("Current Downloads", self.downloads_text)
+        main_layout.addWidget(downloads_group)
 
-# Function to display current downloads in the GUI
-def update_current_downloads():
-    while True:
-        try:
-            download_info = main.get_current_downloads()
-            downloads_text.config(state=tk.NORMAL)
-            downloads_text.delete(1.0, tk.END)
-            downloads_text.insert(tk.END, "Current Downloads:\n")
-            for info in download_info:
-                downloads_text.insert(tk.END, f"{info}\n")
-            downloads_text.config(state=tk.DISABLED)
-        except Exception as e:
-            downloads_text.insert(tk.END, f"Error fetching current downloads: {e}\n")
-        time.sleep(10)  # Update every 10 seconds
+        # Messages from Outlook Section
+        self.outlook_messages_text = QTextEdit()
+        self.outlook_messages_text.setReadOnly(True)
+        outlook_group = self.create_group("Messages from Outlook", self.outlook_messages_text)
+        main_layout.addWidget(outlook_group)
 
-# Updated function to display messages from Outlook
-def display_outlook_messages():
-    while True:
-        try:
-            messages = main.get_outlook_messages()  # Updated to call the Outlook function in main.py
-            messages_text.config(state=tk.NORMAL)
-            messages_text.delete(1.0, tk.END)
-            messages_text.insert(tk.END, "Messages from Outlook:\n")
-            for message in messages:
-                messages_text.insert(tk.END, f"{message}\n")
-            messages_text.config(state=tk.DISABLED)
-        except Exception as e:
-            messages_text.insert(tk.END, f"Error fetching messages from Outlook: {e}\n")
-        time.sleep(60)
+        # Queue Information Section
+        self.next_item_label = QLabel("Next in Queue: None")
+        main_layout.addWidget(self.create_group("Next in Queue", self.next_item_label))
 
-# Function to update the next item in queue
-def update_next_in_queue():
-    while True:
+        # Request Lists Section
+        self.movies_checks = QVBoxLayout()
+        self.tv_checks = QVBoxLayout()
+        self.music_checks = QVBoxLayout()
+        
+        # Scroll Areas for Requests
+        movies_scroll = self.create_scroll_area("Movies Requests", self.movies_checks)
+        tv_scroll = self.create_scroll_area("TV Shows Requests", self.tv_checks)
+        music_scroll = self.create_scroll_area("Music Requests", self.music_checks)
+        
+        requests_layout = QHBoxLayout()
+        requests_layout.addWidget(movies_scroll)
+        requests_layout.addWidget(tv_scroll)
+        requests_layout.addWidget(music_scroll)
+        
+        main_layout.addLayout(requests_layout)
+        
+        # Set main layout in the widget
+        container = QWidget()
+        container.setLayout(main_layout)
+        self.setCentralWidget(container)
+
+        # Set up Threads
+        self.download_manager_thread = DownloadManagerThread()
+        self.download_manager_thread.download_progress_signal.connect(self.update_download_status)
+        self.download_manager_thread.log_message_signal.connect(self.append_log_message)
+        self.download_manager_thread.start()
+
+        self.outlook_messages_thread = OutlookMessagesThread()
+        self.outlook_messages_thread.outlook_message_signal.connect(self.update_outlook_messages)
+        self.outlook_messages_thread.start()
+
+        # Update Request Lists and Queue Info
+        self.update_request_lists()
+        self.update_next_in_queue()
+
+    def create_group(self, title, widget):
+        group_box = QGroupBox(title)
+        layout = QVBoxLayout()
+        layout.addWidget(widget)
+        group_box.setLayout(layout)
+        return group_box
+
+    def create_scroll_area(self, title, layout):
+        group_box = QGroupBox(title)
+        group_box.setLayout(layout)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(group_box)
+        return scroll_area
+
+    def add_request(self):
+        title = self.entry_input.text().strip()
+        if not title:
+            QtWidgets.QMessageBox.warning(self, "Input Error", "Please enter a title to add.")
+            return
+
+        result_message = main.add_request(title)
+        self.status_text.append(result_message)
+        self.entry_input.clear()
+        self.update_request_lists()
+
+    def update_request_lists(self):
+        movies, tv_shows, music = main.get_request_lists()
+        
+        for layout in [self.movies_checks, self.tv_checks, self.music_checks]:
+            while layout.count():
+                widget = layout.takeAt(0).widget()
+                if widget:
+                    widget.deleteLater()
+
+        self.create_checkboxes(movies, self.movies_checks)
+        self.create_checkboxes(tv_shows, self.tv_checks)
+        self.create_checkboxes(music, self.music_checks)
+
+    def create_checkboxes(self, items, layout):
+        for item in items:
+            checkbox = QCheckBox(item)
+            layout.addWidget(checkbox)
+
+    def update_next_in_queue(self):
         try:
             movies, tv_shows, music = main.get_request_lists()
-
-            # Determine the next item in the queue
-            next_item = "None"
-            if movies:
-                next_item = f"{movies[0]} - Movie"
-            elif tv_shows:
-                next_item = f"{tv_shows[0]} - TV Show"
-            elif music:
-                next_item = f"{music[0]} - Music"
-
-            # Update the label with the next item
-            next_item_label.config(text=f"Next in Queue: {next_item}")
-
-        except FileNotFoundError:
-            next_item_label.config(text="Next in Queue: None")
+            next_item = movies[0] if movies else (tv_shows[0] if tv_shows else (music[0] if music else "None"))
+            self.next_item_label.setText(f"Next in Queue: {next_item}")
         except Exception as e:
-            next_item_label.config(text=f"Error: {e}")
+            self.next_item_label.setText(f"Error: {str(e)}")
 
-        time.sleep(10)  # Update every 10 seconds
+    def update_download_status(self, download_info):
+        self.downloads_text.setPlainText(f"Current Downloads:\n{download_info}")
 
-# GUI Setup
-root = tk.Tk()
-root.title("PhantomFetch")
-root.geometry("1000x800")
-root.configure(bg="#f0f0f0")
+    def update_outlook_messages(self, messages):
+        self.outlook_messages_text.setPlainText(f"Messages from Outlook:\n{messages}")
 
-# Set up entry frame and add button
-frame = tk.Frame(root, bg="#f0f0f0")
-frame.pack(pady=10)
+    def append_log_message(self, message):
+        self.status_text.append(message)
 
-entry_label = ttk.Label(frame, text="Enter Title:")
-entry_label.pack(side=tk.LEFT, padx=5)
+    def edit_selected(self):
+        selected_items = []
+        
+        # Gather selected items and determine their type
+        for layout, list_path in [(self.movies_checks, main.FILMS_LIST_PATH),
+                                  (self.tv_checks, main.TV_SHOWS_LIST_PATH),
+                                  (self.music_checks, main.MUSIC_LIST_PATH)]:
+            for i in range(layout.count()):
+                checkbox = layout.itemAt(i).widget()
+                if checkbox and checkbox.isChecked():
+                    selected_items.append((checkbox.text(), list_path))  # Include list_path for each item
 
-entry = ttk.Entry(frame, width=50)
-entry.pack(side=tk.LEFT, padx=10)
+        if len(selected_items) != 1:
+            QtWidgets.QMessageBox.warning(self, "Edit Error", "Please select a single item to edit.")
+            return
 
-add_button = ttk.Button(frame, text="Add Request", command=add_request)
-add_button.pack(side=tk.LEFT)
+        # Get the item title and list path
+        title, list_path = selected_items[0]
 
-# Feedback Text for Added Requests
-scrolled_text = scrolledtext.ScrolledText(frame, width=80, height=4, wrap=tk.WORD)
-scrolled_text.pack(pady=5)
+        # Prompt for new title
+        new_title, ok = QtWidgets.QInputDialog.getText(self, "Edit Request", f"Edit '{title}':")
+        if ok and new_title.strip():
+            main.edit_request(title, new_title.strip(), list_path)
+            self.status_text.append(f"Edited: {title} to {new_title.strip()}")
+            self.update_request_lists()
 
-# Section to display the current downloads
-downloads_frame = tk.LabelFrame(root, text="Current Downloads", padx=10, pady=10, bg="#f0f0f0")
-downloads_frame.pack(fill="both", expand="yes", padx=20, pady=10)
-downloads_text = scrolledtext.ScrolledText(downloads_frame, width=80, height=8, wrap=tk.WORD)
-downloads_text.pack()
+    def delete_selected(self):
+        selected_items = []
+        
+        # Gather selected items and determine their type
+        for layout, list_path in [(self.movies_checks, main.FILMS_LIST_PATH),
+                                  (self.tv_checks, main.TV_SHOWS_LIST_PATH),
+                                  (self.music_checks, main.MUSIC_LIST_PATH)]:
+            for i in range(layout.count()):
+                checkbox = layout.itemAt(i).widget()
+                if checkbox and checkbox.isChecked():
+                    selected_items.append((checkbox.text(), list_path))  # Include list_path for each item
 
-# Section to display messages from Outlook
-teams_frame = tk.LabelFrame(root, text="Messages from Outlook", padx=10, pady=10, bg="#f0f0f0")
-teams_frame.pack(fill="both", expand="yes", padx=20, pady=10)
-messages_text = scrolledtext.ScrolledText(teams_frame, width=80, height=8, wrap=tk.WORD)
-messages_text.pack()
+        if not selected_items:
+            QtWidgets.QMessageBox.warning(self, "Delete Error", "Please select one or more items to delete.")
+            return
 
-# Section to display the next item in the download queue
-queue_frame = tk.Frame(root, bg="#f0f0f0")
-queue_frame.pack(pady=20)
-next_item_label = ttk.Label(queue_frame, text="Next in Queue: None", font=("Helvetica", 14, "bold"))
-next_item_label.pack()
+        for title, list_path in selected_items:
+            main.delete_request(title, list_path)
+            self.status_text.append(f"Deleted: {title}")
+        
+        self.update_request_lists()
 
-# Request Lists Section for Movies, TV, and Music
-request_lists_frame = tk.LabelFrame(root, text="Request Lists", padx=10, pady=10, bg="#f0f0f0")
-request_lists_frame.pack(fill="both", expand="yes", padx=20, pady=10)
-
-# Movies, TV Shows, and Music frames with checkboxes
-movies_frame = tk.Frame(request_lists_frame, bg="#f0f0f0")
-movies_frame.pack(side=tk.LEFT, fill="y", padx=10)
-
-movies_label = ttk.Label(movies_frame, text="Movies Requests:")
-movies_label.pack()
-
-movies_canvas = tk.Canvas(movies_frame, bg="#f0f0f0")
-movies_scrollbar = ttk.Scrollbar(movies_frame, orient="vertical", command=movies_canvas.yview)
-movies_scrollable_frame = tk.Frame(movies_canvas, bg="#f0f0f0")
-
-movies_scrollable_frame.bind(
-    "<Configure>",
-    lambda e: movies_canvas.configure(
-        scrollregion=movies_canvas.bbox("all")
-    )
-)
-
-movies_canvas.create_window((0, 0), window=movies_scrollable_frame, anchor="nw")
-movies_canvas.configure(yscrollcommand=movies_scrollbar.set)
-
-movies_canvas.pack(side="left", fill="both", expand=True)
-movies_scrollbar.pack(side="right", fill="y")
-
-tv_shows_frame = tk.Frame(request_lists_frame, bg="#f0f0f0")
-tv_shows_frame.pack(side=tk.LEFT, fill="y", padx=10)
-
-tv_shows_label = ttk.Label(tv_shows_frame, text="TV Shows Requests:")
-tv_shows_label.pack()
-
-tv_canvas = tk.Canvas(tv_shows_frame, bg="#f0f0f0")
-tv_scrollbar = ttk.Scrollbar(tv_shows_frame, orient="vertical", command=tv_canvas.yview)
-tv_scrollable_frame = tk.Frame(tv_canvas, bg="#f0f0f0")
-
-tv_scrollable_frame.bind(
-    "<Configure>",
-    lambda e: tv_canvas.configure(
-        scrollregion=tv_canvas.bbox("all")
-    )
-)
-
-tv_canvas.create_window((0, 0), window=tv_scrollable_frame, anchor="nw")
-tv_canvas.configure(yscrollcommand=tv_scrollbar.set)
-
-tv_canvas.pack(side="left", fill="both", expand=True)
-tv_scrollbar.pack(side="right", fill="y")
-
-music_frame = tk.Frame(request_lists_frame, bg="#f0f0f0")
-music_frame.pack(side=tk.LEFT, fill="y", padx=10)
-
-music_label = ttk.Label(music_frame, text="Music Requests:")
-music_label.pack()
-
-music_canvas = tk.Canvas(music_frame, bg="#f0f0f0")
-music_scrollbar = ttk.Scrollbar(music_frame, orient="vertical", command=music_canvas.yview)
-music_scrollable_frame = tk.Frame(music_canvas, bg="#f0f0f0")
-
-music_scrollable_frame.bind(
-    "<Configure>",
-    lambda e: music_canvas.configure(
-        scrollregion=music_canvas.bbox("all")
-    )
-)
-
-music_canvas.create_window((0, 0), window=music_scrollable_frame, anchor="nw")
-music_canvas.configure(yscrollcommand=music_scrollbar.set)
-
-music_canvas.pack(side="left", fill="both", expand=True)
-music_scrollbar.pack(side="right", fill="y")
-
-# Initialize and start GUI update threads
-update_request_lists()
-download_thread = threading.Thread(target=update_current_downloads, daemon=True)
-download_thread.start()
-outlook_thread = threading.Thread(target=display_outlook_messages, daemon=True)
-outlook_thread.start()
-queue_thread = threading.Thread(target=update_next_in_queue, daemon=True)
-queue_thread.start()
-
-root.mainloop()
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    gui = PhantomFetchGUI()
+    gui.show()
+    sys.exit(app.exec_())
