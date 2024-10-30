@@ -51,46 +51,55 @@ def sanitize_folder_name(name):
 
 # Function to download a movie based on the given title
 def download_movie(title):
+    # Fetch essential movie details (title and release date)
     movie_details = tmdb_helper.get_media_details(title, media_type='movie')
     if not movie_details:
         print(f"No movie details found for: {title}")
         return
 
+    # Format the movie name and release year
     movie_name = f"{movie_details['title']} ({movie_details['release_date'][:4]})"
     sanitized_movie_name = sanitize_folder_name(movie_name)
-    release_year = movie_details.get('release_date', '')[:4]
+    release_year = movie_details['release_date'][:4]
 
-    if jellyfin_helper.item_exists(movie_name, release_year, type='movie'):
+    # Check if movie already exists in Jellyfin
+    if jellyfin_helper.item_exists(movie_details['title'], release_year, type='movie'):
         print(f"Movie '{movie_name}' already exists in Jellyfin. Skipping download.")
         remove_processed_film(title)
         return
 
+    # Franchise check to avoid duplicate downloads for related movies
     if tmdb_helper.is_part_of_franchise(movie_details):
-        print(f"'{movie_name}' is part of a series or franchise. Checking all related movies...")
+        print(f"'{movie_name}' is part of a series or franchise. Checking related movies...")
         franchise_movies = tmdb_helper.get_franchise_movies(movie_details)
+        
         for franchise_movie in franchise_movies:
             franchise_movie_name = f"{franchise_movie['title']} ({franchise_movie['release_date'][:4]})"
-            if jellyfin_helper.item_exists(franchise_movie_name, release_year, type='movie'):
+            franchise_release_year = franchise_movie['release_date'][:4]
+            # Check if any related movie in the franchise exists in Jellyfin
+            if jellyfin_helper.item_exists(franchise_movie['title'], franchise_release_year, type='movie'):
                 print(f"Related movie '{franchise_movie_name}' already exists in Jellyfin. Skipping download.")
                 remove_processed_film(title)
                 return
 
+    # Torrent search and download initiation
     print(f"Searching for torrents for: {movie_name}")
-
     magnet_link = jackett_helper.search_jackett(movie_name)
     if not magnet_link:
         print(f"No torrent found for: {movie_name}")
         return
 
-    download_folder = get_directory_for_title(movie_name)
-    download_folder = os.path.join(download_folder, sanitized_movie_name)
+    # Define download folder and initiate torrent download
+    download_folder = os.path.join(get_directory_for_title(movie_name), sanitized_movie_name)
     os.makedirs(download_folder, exist_ok=True)
 
     print(f"Adding torrent for: {movie_name} to {download_folder}")
     qb_helper.add_torrent(magnet_link, save_path=download_folder, rename=sanitized_movie_name)
 
+    # Trigger Jellyfin library scan and remove the processed title
     force_jellyfin_library_scan()
     remove_processed_film(title)
+
 
 # Function to force Jellyfin library scan
 def force_jellyfin_library_scan():
