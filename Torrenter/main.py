@@ -16,9 +16,9 @@ from utils.qbittorrent_helper import QBittorrentHelper
 from utils.jackett_helper import JackettHelper
 from PyQt5.QtWidgets import QInputDialog
 
+# Initialize qBittorrent helper
 qb_helper = QBittorrentHelper()
 jackett_helper = JackettHelper()
-
 
 if getattr(sys, 'frozen', False):  # PyInstaller context
     APPLICATION_PATH = sys._MEIPASS
@@ -27,7 +27,6 @@ else:
 
 # Reference config.yaml using APPLICATION_PATH
 CONFIG_FILE = os.path.join(APPLICATION_PATH, 'assets', 'config.yaml')
-
 
 if not os.path.exists(CONFIG_FILE):
     raise FileNotFoundError("Configuration file 'config.yaml' is missing.")
@@ -52,19 +51,31 @@ jellyfin_helper = JellyfinHelper(JELLYFIN_SERVER_URL, JELLYFIN_API_KEY)
 tmdb_helper = TMDbHelper(config_path=CONFIG_FILE)
 spotify_helper = SpotifyHelper(client_id=config['Spotify']['client_id'], client_secret=config['Spotify']['client_secret'])
 
-# qBittorrent Configuration
-qb = Client(
-    host=config['qBittorrent']['host'],
-    username=config['qBittorrent']['username'],
-    password=config['qBittorrent']['password']
-)
-
 # Log function with size restriction
 def log_message(message):
     if os.path.exists(LOG_FILE_PATH) and os.path.getsize(LOG_FILE_PATH) > 10 * 1024 * 1024:  # Limit 10 MB
         os.remove(LOG_FILE_PATH)
     with open(LOG_FILE_PATH, 'a') as log_file:
         log_file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
+
+# Function to manage continuous monitoring and cleanup for qBittorrent
+def continuous_monitoring(helper):
+    while True:
+        helper.remove_completed_torrents()  # Check and clean up completed torrents
+        time.sleep(60)  # Check every minute
+
+# Function to retrieve current downloads
+def get_current_downloads():
+    try:
+        downloading_torrents = qb_helper.qb.torrents_info(status_filter='downloading')
+        download_list = []
+        for torrent in downloading_torrents:
+            progress = round(torrent.progress * 100, 2)  # Format progress as a percentage
+            download_list.append(f"{torrent.name} - {progress}% complete at {torrent.dlspeed / (1024**2):.2f} MB/s")
+        return download_list
+    except Exception as e:
+        log_message(f"Error fetching current downloads: {e}")
+        return ["Error retrieving downloads"]
 
 
 def get_request_lists():
@@ -236,19 +247,6 @@ def get_outlook_messages():
     messages = [f"Subject: {email.get('subject', 'No Subject')}\nPreview: {email.get('bodyPreview', 'No Body Preview')}" for email in emails]
     return messages
 
-# Function to retrieve current downloads
-def get_current_downloads():
-    try:
-        # Retrieve a list of torrents with 'downloading' status
-        downloading_torrents = qb.torrents_info(status_filter='downloading')
-        download_list = []
-        for torrent in downloading_torrents:
-            progress = round(torrent.progress * 100, 2)  # Format progress as a percentage
-            download_list.append(f"{torrent.name} - {progress}% complete at {torrent.dlspeed / (1024**2):.2f} MB/s")
-        return download_list
-    except Exception as e:
-        log_message(f"Error fetching current downloads: {e}")
-        return ["Error retrieving downloads"]
 
 # Function to manage the round-robin downloading of TV shows, movies, and music
 def manage_downloads():
@@ -307,7 +305,7 @@ def monitor_teams():
         access_token = get_access_token()
         if not access_token:
             log_message("Unable to retrieve Teams access token.")
-            time.sleep(300)
+            time.sleep(30)
             continue
 
         # Get emails from Teams
