@@ -300,13 +300,46 @@ class PhantomFetchGUI(QMainWindow):
     def append_log_message(self, message):
         self.status_text.append(message)
 
-    def edit_selected(self):
-        # Similar logic as before, adjusted if needed for the database
-        pass
+       def edit_selected(self):
+        selected_items = self.get_selected_items()
+        
+        # Check if only one item is selected
+        if len(selected_items) != 1:
+            QtWidgets.QMessageBox.warning(self, "Edit Error", "Please select a single item to edit.")
+            return
+
+        # Get the selected item's title and its list path
+        title, list_path = selected_items[0]
+
+        # Prompt for the new title
+        new_title, ok = QtWidgets.QInputDialog.getText(self, "Edit Request", f"Edit '{title}':")
+        if ok and new_title.strip():
+            # Call main.edit_request to make the change in the file
+            success = main.edit_request(title, new_title.strip(), list_path)
+            if success:
+                self.status_text.append(f"Edited '{title}' to '{new_title.strip()}'")
+            else:
+                self.status_text.append(f"Failed to edit '{title}'")
+            self.update_request_lists()  # Refresh list
 
     def delete_selected(self):
-        # Similar logic as before, adjusted if needed for the database
-        pass
+        selected_items = self.get_selected_items()
+
+        # Check if at least one item is selected
+        if not selected_items:
+            QtWidgets.QMessageBox.warning(self, "Delete Error", "Please select one or more items to delete.")
+            return
+
+        # Delete each selected item
+        for title, list_path in selected_items:
+            success = main.delete_request(title, list_path)
+            if success:
+                self.status_text.append(f"Deleted '{title}'")
+            else:
+                self.status_text.append(f"Failed to delete '{title}'")
+
+        self.update_request_lists()  # Refresh list
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
