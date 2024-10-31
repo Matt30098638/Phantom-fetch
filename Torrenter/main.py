@@ -12,10 +12,23 @@ from Movies import download_movie
 from TV import download_tv_show
 from Teams_Requests import get_access_token, get_filtered_emails, process_requests
 from utils.music_helper import SpotifyHelper, download_music
+from utils.qbittorrent_helper import QBittorrentHelper
+from utils.jackett_helper import JackettHelper
+from PyQt5.QtWidgets import QInputDialog
 
-# Determine the correct path for config.yaml
-APPLICATION_PATH = os.path.dirname(os.path.abspath(__file__))
+qb_helper = QBittorrentHelper()
+jackett_helper = JackettHelper()
+
+
+if getattr(sys, 'frozen', False):  # PyInstaller context
+    APPLICATION_PATH = sys._MEIPASS
+else:
+    APPLICATION_PATH = os.path.dirname(os.path.abspath(__file__))
+
+# Reference config.yaml using APPLICATION_PATH
 CONFIG_FILE = os.path.join(APPLICATION_PATH, 'assets', 'config.yaml')
+
+
 if not os.path.exists(CONFIG_FILE):
     raise FileNotFoundError("Configuration file 'config.yaml' is missing.")
 
@@ -28,7 +41,7 @@ FILMS_LIST_PATH = 'E:\\requests\\Film-list.txt'
 TV_SHOWS_LIST_PATH = 'E:\\requests\\Tv-Shows.txt'
 MUSIC_LIST_PATH = 'E:\\requests\\Music-list.txt'
 LOG_FILE_PATH = os.path.join(APPLICATION_PATH, 'logs', 'app_log.txt')
-MAX_ACTIVE_DOWNLOADS = 15  # Maximum number of concurrent downloads allowed
+MAX_ACTIVE_DOWNLOADS = 30
 
 # Jellyfin Configuration
 JELLYFIN_SERVER_URL = config['Jellyfin']['server_url']
@@ -57,17 +70,26 @@ def log_message(message):
 def get_request_lists():
     """Retrieve current requests for movies, TV shows, and music from their respective lists."""
     def read_file(file_path):
+        print(f"Attempting to read file: {file_path}")  # Debug: Check which file path is accessed
         if os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as file:
-                return [line.strip() for line in file if line.strip()]
+                lines = [line.strip() for line in file if line.strip()]
+                print(f"Successfully read {len(lines)} items from {file_path}")  # Debug: Check number of lines read
+                return lines
+        else:
+            print(f"File does not exist: {file_path}")  # Debug: Notify if file path is incorrect
         return []
     
+    # Paths assumed to be defined elsewhere in the codebase
     movies = read_file(FILMS_LIST_PATH)
     tv_shows = read_file(TV_SHOWS_LIST_PATH)
     music = read_file(MUSIC_LIST_PATH)
     
+    print("Movies:", movies)       # Debug: Display movie list
+    print("TV Shows:", tv_shows)    # Debug: Display TV show list
+    print("Music:", music)          # Debug: Display music list
+    
     return movies, tv_shows, music
-
 
 # Ensure directories and files exist
 os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
@@ -75,21 +97,111 @@ for file_path in [FILMS_LIST_PATH, TV_SHOWS_LIST_PATH, MUSIC_LIST_PATH]:
     if not os.path.exists(file_path):
         open(file_path, 'w').close()
 
+def detect_category(title):
+    """
+    Detects the category of a title based on keywords or patterns.
+    Returns the corresponding file path for Movies, TV Shows, or Music.
+    """
+    # Define keywords for each category
+    movie_keywords = ["movie", "film", "cinema", "episode", "saga", "part", "trilogy"]
+    tv_show_keywords = ["season", "series", "episode", "tv show", "show"]
+    music_keywords = ["album", "song", "music", "track", "single", "band", "concert"]
+
+    # Convert title to lowercase for easier matching
+    title_lower = title.lower()
+
+    # Check for keywords in title
+    if any(keyword in title_lower for keyword in movie_keywords):
+        return FILMS_LIST_PATH
+    elif any(keyword in title_lower for keyword in tv_show_keywords):
+        return TV_SHOWS_LIST_PATH
+    elif any(keyword in title_lower for keyword in music_keywords):
+        return MUSIC_LIST_PATH
+    else:
+        # If no keywords match, return None (unclassified)
+        return None
+
+def get_category_name(file_path):
+    """
+    Returns the category name (Movies, TV Shows, or Music) based on the file path.
+    """
+    if file_path == FILMS_LIST_PATH:
+        return "Movies"
+    elif file_path == TV_SHOWS_LIST_PATH:
+        return "TV Shows"
+    elif file_path == MUSIC_LIST_PATH:
+        return "Music"
+    else:
+        return "Unknown"
+
+def add_request(title):
+    """
+    Adds a request to the appropriate category file based on title.
+    """
+    # Determine the category based on the title
+    list_path = detect_category(title)
+
+    # If no category is detected, prompt the user to choose
+    if not list_path:
+        category, ok = QInputDialog.getItem(
+            None, "Select Category", 
+            f"Could not categorize '{title}'. Please select a category:", 
+            ["Movies", "TV Shows", "Music"], 0, False
+        )
+        if not ok or not category:
+            return f"Request for '{title}' was canceled."
+
+        # Map the selected category to its file path
+        if category == "Movies":
+            list_path = FILMS_LIST_PATH
+        elif category == "TV Shows":
+            list_path = TV_SHOWS_LIST_PATH
+        elif category == "Music":
+            list_path = MUSIC_LIST_PATH
+
+    # Append to the appropriate list
+    with open(list_path, 'a', encoding='utf-8') as file:
+        file.write(title + "\n")
+
+    return f"Added '{title}' to {get_category_name(list_path)} requests."
+
 # Backend function to delete a request from the list
+def edit_request(old_title, new_title, list_path):
+    try:
+        if os.path.exists(list_path):
+            with open(list_path, 'r', encoding='utf-8') as file:
+                requests = [line.strip() for line in file]
+
+            # Update the title if it matches the old title
+            updated_requests = [new_title if req.lower() == old_title.lower() else req for req in requests]
+
+            # Write back the updated requests to the file
+            with open(list_path, 'w', encoding='utf-8') as file:
+                file.write("\n".join(updated_requests) + "\n")
+
+            return True
+    except Exception as e:
+        print(f"Error editing request from '{old_title}' to '{new_title}' in list '{list_path}': {e}")
+    return False
+
 def delete_request(title, list_path):
     try:
         if os.path.exists(list_path):
             with open(list_path, 'r', encoding='utf-8') as file:
-                requests = [line.strip() for line in file.readlines()]
+                requests = [line.strip() for line in file]
+
+            # Remove the request with the matching title
             updated_requests = [req for req in requests if req.lower() != title.lower()]
+
+            # Write back the updated requests to the file
             with open(list_path, 'w', encoding='utf-8') as file:
-                for req in updated_requests:
-                    file.write(f"{req}\n")
-            log_message(f"Removed completed request: {title}")
+                file.write("\n".join(updated_requests) + "\n")
+
             return True
     except Exception as e:
-        log_message(f"Error removing completed title '{title}' from request list '{list_path}': {e}")
+        print(f"Error deleting '{title}' from '{list_path}': {e}")
     return False
+
 
 # Verification functions for downloaded content
 def verify_movie(title):
