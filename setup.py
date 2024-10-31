@@ -13,7 +13,7 @@ from spotipy.oauth2 import SpotifyOAuth
 INSTALL_PATH = "C:\\Torrenter"
 ASSETS_PATH = os.path.join(INSTALL_PATH, "assets")
 CONFIG_FILE_PATH = os.path.join(ASSETS_PATH, 'config.yaml')
-DEPENDENCIES = ["requests", "qbittorrent-api", "msal", "beautifulsoup4", "pyyaml", "spotipy", "pyinstaller"]
+DEPENDENCIES = ["# Core dependencies "PyQt5," "tmdbv3api", "requests", "qbittorrent-api", "msal", "beautifulsoup4", "pyyaml", "spotipy", "pyinstaller"]
 
 # Microsoft Graph-related Constants
 GRAPH_AUTHORITY = "https://login.microsoftonline.com/"
