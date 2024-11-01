@@ -57,10 +57,12 @@ class DownloadManagerThread(QtCore.QThread):
         while True:
             try:
                 download_info = main.get_current_downloads()
+                
                 self.download_progress_signal.emit("\n".join(download_info))
             except Exception as e:
                 self.log_message_signal.emit(f"Error fetching downloads: {str(e)}")
-            time.sleep(10)
+            time.sleep(10)  
+
 
 class OutlookMessagesThread(QtCore.QThread):
     outlook_message_signal = QtCore.pyqtSignal(str)
