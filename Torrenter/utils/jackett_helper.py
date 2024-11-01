@@ -2,6 +2,8 @@ import requests
 import re
 import logging
 import time
+import subprocess
+import os
 from config import config
 
 class JackettHelper:
@@ -11,12 +13,48 @@ class JackettHelper:
         self.server_url = jackett_config.get('server_url', '')
         self.categories = jackett_config.get('categories', {})
         self.failed_search_cache = {}
+        self.jackett_path = jackett_config.get('path', '/path/to/jackett')  # Path to Jackett executable or start command
 
         if not self.api_key or not self.server_url:
             raise ValueError("Jackett configuration is missing 'api_key' or 'server_url'.")
 
+    def check_running(self):
+        """Check if Jackett is running by sending a request to its URL."""
+        try:
+            response = requests.get(f"{self.server_url}/UI/Login")
+            # Check if we receive a 200 response from the UI or API endpoint
+            return response.status_code == 200
+        except requests.ConnectionError:
+            logging.info("Jackett is not running.")
+            return False
+
+    def start_service(self):
+        """Attempt to start the Jackett service if it's not running."""
+        try:
+            # Start Jackett as a background process
+            subprocess.Popen([self.jackett_path])  # Update with Jackett’s actual command or path
+            time.sleep(5)  # Give Jackett some time to start
+            logging.info("Attempting to start Jackett...")
+            if self.check_running():
+                logging.info("Jackett started successfully.")
+                return True
+            else:
+                logging.error("Jackett failed to start.")
+                return False
+        except Exception as e:
+            logging.error(f"Failed to start Jackett: {e}")
+            return False
+
     def search_jackett(self, query, min_seeders=5, category="Movies"):
         """Search for a torrent using Jackett with filtering."""
+        # Check if Jackett is running; if not, start it
+        if not self.check_running():
+            logging.info("Jackett is not running. Attempting to start...")
+            if not self.start_service():
+                logging.error("Could not start Jackett service.")
+                return None
+
+        # Cache check for recent failed searches
         cache_expiry = 60 * 60  # 1 hour cache for failed searches
         current_time = time.time()
         if query in self.failed_search_cache:
