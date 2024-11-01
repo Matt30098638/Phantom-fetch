@@ -2,6 +2,8 @@ import requests
 import yaml
 import logging
 import os
+import subprocess
+import time
 
 class JackettHelper:
     def __init__(self, config_path='config.yaml'):
@@ -13,12 +15,48 @@ class JackettHelper:
         self.api_key = jackett_config.get('api_key', '')
         self.server_url = jackett_config.get('server_url', '')
         self.categories = jackett_config.get('categories', {})
+        self.jackett_path = jackett_config.get('path', '')  # Path to Jackett executable
 
-        if not self.api_key or not self.server_url:
-            raise ValueError("Jackett configuration is missing 'api_key' or 'server_url'.")
+        if not self.api_key or not self.server_url or not self.jackett_path:
+            raise ValueError("Jackett configuration is missing 'api_key', 'server_url', or 'path'.")
+
+    def check_running(self):
+        """Check if Jackett is running by sending a request to its server URL."""
+        try:
+            response = requests.get(self.server_url)
+            return response.status_code == 200
+        except requests.ConnectionError:
+            logging.warning("Jackett is not running.")
+            return False
+
+    def start_service(self):
+        """Attempt to start Jackett service if it's not running."""
+        if not os.path.exists(self.jackett_path):
+            logging.error(f"Jackett path not found: {self.jackett_path}")
+            return False
+
+        try:
+            logging.info("Starting Jackett service...")
+            subprocess.Popen([self.jackett_path])  # Launch Jackett
+            time.sleep(5)  # Wait briefly to allow service to start
+            if self.check_running():
+                logging.info("Jackett started successfully.")
+                return True
+            else:
+                logging.error("Failed to start Jackett.")
+                return False
+        except Exception as e:
+            logging.error(f"Error starting Jackett: {e}")
+            return False
 
     def search_jackett(self, query, category="Music"):
         """Search for a torrent using Jackett with filtering."""
+        if not self.check_running():
+            logging.info("Jackett is not running; attempting to start...")
+            if not self.start_service():
+                logging.error("Unable to start Jackett service. Aborting search.")
+                return None
+
         try:
             # Set the category ID from config
             category_id = self.categories.get(category, "")
@@ -70,9 +108,12 @@ if __name__ == "__main__":
     # Initialize JackettHelper
     jackett_helper = JackettHelper(config_path=CONFIG_FILE)
 
-    # Search for a music torrent
-    magnet_uri = jackett_helper.search_jackett("Your Query", category="Music")
-    if magnet_uri:
-        print(f"Magnet URI: {magnet_uri}")
+    # Check if Jackett is running, start it if necessary, and search for a music torrent
+    if jackett_helper.check_running() or jackett_helper.start_service():
+        magnet_uri = jackett_helper.search_jackett("Your Query", category="Music")
+        if magnet_uri:
+            print(f"Magnet URI: {magnet_uri}")
+        else:
+            print("No suitable torrent found.")
     else:
-        print("No suitable torrent found.")
+        print("Jackett service could not be started.")
