@@ -294,12 +294,14 @@ class PhantomFetchGUI(QMainWindow):
             self.next_item_label.setText(f"Error: {str(e)}")
 
     def update_download_status(self, download_info):
+        """Update the 'Current Downloads' display with live download info."""
         self.downloads_text.setPlainText(f"Current Downloads:\n{download_info}")
 
     def update_outlook_messages(self, messages):
         self.outlook_messages_text.setPlainText(f"Messages from Outlook:\n{messages}")
 
     def append_log_message(self, message):
+        """Append log messages in the status_text area."""
         self.status_text.append(message)
 
        def edit_selected(self):
