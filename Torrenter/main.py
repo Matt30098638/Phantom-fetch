@@ -64,19 +64,25 @@ def continuous_monitoring(helper):
         helper.remove_completed_torrents()  # Check and clean up completed torrents
         time.sleep(60)  # Check every minute
 
-# Function to retrieve current downloads
+# Function to retrieve and monitor current downloads continuously
 def get_current_downloads():
-    try:
-        downloading_torrents = qb_helper.qb.torrents_info(status_filter='downloading')
-        download_list = []
-        for torrent in downloading_torrents:
-            progress = round(torrent.progress * 100, 2)  # Format progress as a percentage
-            download_list.append(f"{torrent.name} - {progress}% complete at {torrent.dlspeed / (1024**2):.2f} MB/s")
-        return download_list
-    except Exception as e:
-        log_message(f"Error fetching current downloads: {e}")
-        return ["Error retrieving downloads"]
+    while True:
+        try:
+            downloading_torrents = qb_helper.qb.torrents_info(status_filter='downloading')
+            download_list = []
 
+            for torrent in downloading_torrents:
+                progress = round(torrent.progress * 100, 2)  # Format progress as a percentage
+                download_list.append(f"{torrent.name} - {progress}% complete at {torrent.dlspeed / (1024**2):.2f} MB/s")
+
+            # Update your application's display or log with the current download list
+            update_download_display(download_list)
+            
+        except Exception as e:
+            log_message(f"Error fetching current downloads: {e}")
+        
+        # Wait 10 seconds before the next check
+        time.sleep(10)
 
 def get_request_lists():
     """Retrieve current requests for movies, TV shows, and music from their respective lists."""
