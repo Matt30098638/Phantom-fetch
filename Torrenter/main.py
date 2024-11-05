@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import threading
@@ -214,14 +215,14 @@ def delete_request(title, list_path):
 
 
 # Verification functions for downloaded content
-def verify_movie(title):
-    return tmdb_helper.verify_movie_in_jellyfin(title)
+#def verify_movie(title):
+    #return tmdb_helper.verify_movie_in_jellyfin(title)
 
-def verify_tv_show(title):
-    return tmdb_helper.verify_tv_show_in_jellyfin(title)
+#def verify_tv_show(title):
+ #   return tmdb_helper.verify_tv_show_in_jellyfin(title)
 
-def verify_music(title):
-    return spotify_helper.verify_music_in_jellyfin(title)
+#def verify_music(title):
+#    return spotify_helper.verify_music_in_jellyfin(title)
 
 
 # Verification functions for downloaded content using Jellyfin
@@ -246,8 +247,10 @@ def get_outlook_messages():
     messages = [f"Subject: {email.get('subject', 'No Subject')}\nPreview: {email.get('bodyPreview', 'No Body Preview')}" for email in emails]
     return messages
 
+def strip_year_from_title(title):
+    # Removes any 4-digit sequence, assuming it represents a year
+    return re.sub(r"\b\d{4}\b", "", title).strip()
 
-# Function to manage the round-robin downloading of TV shows, movies, and music
 def manage_downloads():
     round_robin = ["tv", "movie", "music"]
     list_paths = {
@@ -258,7 +261,7 @@ def manage_downloads():
     current_index = 0
 
     while True:
-        active_downloads = len([t for t in qb.torrents_info() if t.state == 'downloading'])
+        active_downloads = len([t for t in qb_helper.qb.torrents_info() if t.state == 'downloading'])
         if active_downloads >= MAX_ACTIVE_DOWNLOADS:
             log_message(f"Max active downloads reached: {active_downloads}. Waiting for slots to free up...")
             time.sleep(10)
@@ -274,25 +277,28 @@ def manage_downloads():
                 title = file.readline().strip()
 
         if title:
-            log_message(f"Processing {content_type} request: {title}")
+            # Strip the year from the title for cleaner searches
+            clean_title = strip_year_from_title(title)
+            log_message(f"Processing {content_type} request: {clean_title}")
             
             # Start the download process based on content type
             if content_type == "movie":
-                if download_movie(title):  # Assume download_movie returns True if download started
-                    if verify_movie(title):
+                if download_movie(clean_title):  # Assume download_movie uses just the title
+                    if verify_movie(clean_title):
                         delete_request(title, FILMS_LIST_PATH)
             elif content_type == "tv":
-                if download_tv_show(title):  # Assume download_tv_show returns True if download started
-                    if verify_tv_show(title):
+                if download_tv_show(clean_title):  # Assume download_tv_show uses just the title
+                    if verify_tv_show(clean_title):
                         delete_request(title, TV_SHOWS_LIST_PATH)
             elif content_type == "music":
-                if download_music(title):  # Assume download_music returns True if download started
-                    if verify_music(title):
+                if download_music(clean_title):  # Assume download_music uses just the title
+                    if verify_music(clean_title):
                         delete_request(title, MUSIC_LIST_PATH)
 
         # Move to the next content type in the round-robin order
         current_index = (current_index + 1) % len(round_robin)
         time.sleep(1)  # Small delay to avoid overwhelming requests
+
 
 # Start threads for managing downloads and monitoring Teams
 download_management_thread = threading.Thread(target=manage_downloads, daemon=True)
