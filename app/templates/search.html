@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Torrent Search{% endblock %}
+
+{% block content %}
+    <h1>Search Torrents</h1>
+
+    <!-- Search Form -->
+    <form method="POST" action="{{ url_for('web_routes.search_torrents') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-group">
+            <input type="text" name="query" placeholder="Enter search term" required class="form-control">
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+    </form>
+
+    <!-- Search Results -->
+    {% if results is not none %}
+        <h2>Search Results</h2>
+        {% if results %}
+            <ul>
+                {% for result in results %}
+                    <li>
+                        <strong>{{ result['Title'] }}</strong><br>
+                        <p>Seeders: {{ result['Seeders'] }}, Leechers: {{ result['Peers'] }}</p>
+                        <a href="{{ result['MagnetUri'] }}" target="_blank" class="btn btn-link">Download via Magnet</a>
+                        <form method="POST" action="{{ url_for('web_routes.add_to_downloads') }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="magnet_uri" value="{{ result['MagnetUri'] }}">
+                            <input type="hidden" name="title" value="{{ result['Title'] }}">
+                            <input type="hidden" name="media_type" value="Movies">
+                            <button type="submit">Download</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No results found for your query. Please try again.</p>
+        {% endif %}
+    {% endif %}
+{% endblock %}
