@@ -209,6 +209,3 @@ Logs include:
 5. **Custom Media Organization:**
    Provide advanced options for organizing media into specific folder structures.
 
----
-
-This documentation provides a detailed guide to setting up and using the Media Management Flask app. If you have further questions or run into issues, feel free to ask!
