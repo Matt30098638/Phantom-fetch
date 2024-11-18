@@ -1,0 +1,38 @@
+Jackett:
+  api_key: <api Key>
+  categories:
+    Movies: '2000'
+    Music: '3000'
+    TV: '5000'
+  server_url: http://127.0.0.1:9117/
+
+Jellyfin:
+  api_key: <api Key>
+  server_url: http://127.0.0.1:8096
+
+MicrosoftGraph:
+  cache_file_path: token_cache.bin
+  client_id: <client_id>
+  scopes:
+    - Chat.ReadWrite
+    - Mail.ReadWrite
+    - Mail.Send
+  tenant_id: <tenant_id>
+
+Spotify:
+  client_id: <client_id>
+  client_secret: <client_secret>
+
+TMDb:
+  api_key: <api Key>
+
+qBittorrent:
+  host: http://127.0.0.1:8080
+  username: admin
+  password: <password>
+
+Database:
+  uri: mysql+pymysql://user_admin:passowr@localhost/Media_management
+  track_modifications: false
+
+Secret_key: 
