@@ -190,22 +190,4 @@ Logs include:
 3. **Efficient Torrent Management:**
    Combines the power of Jackett and qBittorrent for streamlined torrent searches and downloads.
 
----
-
-#### **Future Improvements**
-
-1. **Docker Support:**
-   Add Docker configurations for easier deployment.
-
-2. **Scalability:**
-   Transition to PostgreSQL for larger datasets.
-
-3. **Improved User Interface:**
-   Enhance the web interface for a better user experience.
-
-4. **Notifications:**
-   Add email or push notifications for completed downloads or updates.
-
-5. **Custom Media Organization:**
-   Provide advanced options for organizing media into specific folder structures.
 
