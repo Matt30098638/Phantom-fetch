@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Media Requests</h1>
+
+<!-- Form for adding a new request -->
+<form method="POST" action="{{ url_for('web_routes.add_request') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>Add Request</h2>
+    <label for="title">Title:</label>
+    <input type="text" id="title" name="title" required>
+    <label for="type">Type:</label>
+    <select id="type" name="type">
+        <option value="Movie">Movie</option>
+        <option value="TV Show">TV Show</option>
+        <option value="Music">Music</option>
+    </select>
+    <button type="submit">Add Request</button>
+</form>
+
+<h2>Current Requests</h2>
+{% if requests %}
+<table>
+    <tr>
+        <th>Title</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Actions</th>
+    </tr>
+    {% for request in requests %}
+    <tr>
+        <td>{{ request.title }}</td>
+        <td>{{ request.media_type }}</td>
+        <td>{{ request.status }}</td>
+        <td>
+            <!-- Edit button to trigger modal -->
+            <button class="btn btn-primary" onclick="openEditModal('{{ request.id }}', '{{ request.title }}', '{{ request.media_type }}', '{{ request.status }}')">Edit</button>
+
+            <!-- Delete form -->
+            <form action="{{ url_for('web_routes.delete_request', request_id=request.id) }}" method="POST" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this request?');">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No current requests found.</p>
+{% endif %}
+
+<!-- Edit Request Modal -->
+<div id="editModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeEditModal()">&times;</span>
+        <h2>Edit Request</h2>
+        <form id="editForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="editTitle">Title:</label>
+            <input type="text" id="editTitle" name="title" required>
+            <label for="editType">Type:</label>
+            <select id="editType" name="type">
+                <option value="Movie">Movie</option>
+                <option value="TV Show">TV Show</option>
+                <option value="Music">Music</option>
+            </select>
+            <label for="editStatus">Status:</label>
+            <input type="text" id="editStatus" name="status">
+            <button type="submit">Update Request</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditModal(id, title, type, status) {
+    const editForm = document.getElementById('editForm');
+    editForm.action = "/edit-request/" + id;  // Set the action URL directly
+    document.getElementById('editTitle').value = title;
+    document.getElementById('editType').value = type;
+    document.getElementById('editStatus').value = status;
+    document.getElementById('editModal').style.display = 'block';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+</script>
+
+<style>
+/* Basic modal styling */
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 15px;
+    z-index: 1000;
+}
+.modal-content {
+    padding: 20px;
+}
+.close {
+    float: right;
+    font-size: 20px;
+    cursor: pointer;
+}
+</style>
+
+{% endblock %}
