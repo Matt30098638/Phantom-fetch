@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Media Management{% endblock %}</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+        {% block head %}{% endblock %}
+    </head>
+    
+<body>
+    <!-- Navigation -->
+    <nav>
+        <!-- Menu Toggle Button for Mobile -->
+        <button class="menu-toggle" aria-label="Toggle Menu">☰</button>
+
+        <!-- Collapsible Menu -->
+        <ul class="collapsed">
+            <li><a href="{{ url_for('web_routes.home') }}">Home</a></li>
+            <li><a href="{{ url_for('web_routes.add_request') }}">Requests</a></li>
+            <li><a href="{{ url_for('web_routes.downloads') }}">Downloads</a></li>
+            <li><a href="{{ url_for('web_routes.library') }}">Library</a></li>
+            <li><a href="{{ url_for('web_routes.recommendations') }}">Recommendations</a></li>
+            <li><a href="{{ url_for('web_routes.search_torrents') }}">Torrent Search</a></li>
+            <li><a href="{{ url_for('web_routes.future_releases') }}">Future Releases</a></li>
+            {% if current_user.is_authenticated %}
+                <li><a href="{{ url_for('auth_routes.logout') }}">Logout</a></li>
+            {% else %}
+                <li><a href="{{ url_for('auth_routes.login') }}">Login</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+</body>
+</html>
