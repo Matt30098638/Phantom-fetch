@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Edit Request</h1>
+<form method="POST" action="{{ url_for('web_routes.update_request', request_id=request.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="title">Title:</label>
+    <input type="text" id="title" name="title" value="{{ request.title }}" required>
+    <label for="type">Type:</label>
+    <select id="type" name="type">
+        <option value="Movie" {% if request.media_type == 'Movie' %}selected{% endif %}>Movie</option>
+        <option value="TV Show" {% if request.media_type == 'TV Show' %}selected{% endif %}>TV Show</option>
+        <option value="Music" {% if request.media_type == 'Music' %}selected{% endif %}>Music</option>
+    </select>
+    <label for="status">Status:</label>
+    <input type="text" id="status" name="status" value="{{ request.status }}">
+    <button type="submit">Update Request</button>
+</form>
+{% endblock %}
