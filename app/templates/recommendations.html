@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Recommendations</h1>
+
+{% if recommendations %}
+<form id="recommendationsForm">
+    <table>
+        <tr>
+            <th>Thumbnail</th>
+            <th>Original Media Title</th>
+            <th>Recommendation</th>
+            <th>Media Type</th>
+            <th>Description</th>
+            <th>Add to Request or Ignore</th>
+        </tr>
+        {% for recommendation in recommendations %}
+        <tr>
+            <!-- Thumbnail image with URL link -->
+            <td>
+                {% if recommendation.thumbnail_url %}
+                    <a href="{{ recommendation.url }}" target="_blank">
+                        <img src="{{ recommendation.thumbnail_url }}" alt="Thumbnail" width="100">
+                    </a>
+                {% else %}
+                    <p>No thumbnail available</p>
+                {% endif %}
+            </td>
+            
+            <!-- Original media title -->
+            <td>{{ recommendation.original_title }}</td>
+            
+            <!-- Recommended title -->
+            <td>{{ recommendation.recommended_title }}</td>
+            
+            <!-- Media type -->
+            <td>{{ recommendation.media_type }}</td>
+            
+            <!-- Description -->
+            <td>{{ recommendation.description }}</td>
+            
+            <!-- Action buttons -->
+            <td>
+                <button type="button" onclick="addToRequest('{{ recommendation.recommended_title }}', '{{ recommendation.media_type }}', this)">
+                    Add to Requests
+                </button>
+                <button type="button" onclick="ignoreRecommendation(this)">Ignore</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <!-- Bulk Action Buttons -->
+    <div style="margin-top: 20px;">
+        <button type="button" onclick="addSelectedToRequests()">Add Selected to Requests</button>
+        <button type="button" onclick="ignoreSelected()">Ignore Selected</button>
+    </div>
+</form>
+
+<script>
+    // Add a single recommendation to requests
+    async function addToRequest(title, mediaType, button) {
+        try {
+            const response = await fetch('/add-to-requests', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}' // CSRF token
+                },
+                body: JSON.stringify({ title: title, media_type: mediaType })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert(result.message);
+
+                // Disable the button or update appearance
+                button.disabled = true;
+                button.textContent = "Added";
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.message}`);
+            }
+        } catch (err) {
+            console.error("Request failed:", err);
+            alert("An error occurred while processing your request.");
+        }
+    }
+
+    // Ignore a single recommendation
+    function ignoreRecommendation(button) {
+        button.disabled = true;
+        button.textContent = "Ignored";
+        alert("Recommendation ignored.");
+    }
+
+    // Add selected recommendations to requests
+    async function addSelectedToRequests() {
+        const selectedRecommendations = [];
+        const rows = document.querySelectorAll("table tr");
+
+        rows.forEach(row => {
+            const checkbox = row.querySelector("input[type='checkbox']");
+            if (checkbox && checkbox.checked) {
+                const title = row.querySelector("[data-title]").dataset.title;
+                const mediaType = row.querySelector("[data-media-type]").dataset.mediaType;
+
+                selectedRecommendations.push({ title, media_type: mediaType });
+            }
+        });
+
+        if (selectedRecommendations.length === 0) {
+            alert("No recommendations selected.");
+            return;
+        }
+
+        for (const recommendation of selectedRecommendations) {
+            await addToRequest(recommendation.title, recommendation.media_type);
+        }
+    }
+
+    // Ignore selected recommendations
+    function ignoreSelected() {
+        const rows = document.querySelectorAll("table tr");
+
+        rows.forEach(row => {
+            const checkbox = row.querySelector("input[type='checkbox']");
+            if (checkbox && checkbox.checked) {
+                const button = row.querySelector("button");
+                if (button) ignoreRecommendation(button);
+            }
+        });
+    }
+</script>
+{% else %}
+    <p>No recommendations found.</p>
+{% endif %}
+{% endblock %}
