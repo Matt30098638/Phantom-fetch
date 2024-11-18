@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Your Library</h1>
+
+<!-- Initial Search Button -->
+<button id="search-tmdb-button" class="btn btn-primary" onclick="searchTmdb()">Search TMDB for Title</button>
+
+<!-- Hidden TMDB Confirmation Modal -->
+<div id="tmdbModal" class="modal" style="display: none;" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-title">TMDB Title</h5>
+                <button type="button" class="close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="modal-overview">Overview</p>
+                <p><strong>Release Date:</strong> <span id="modal-release-date"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="confirmTmdb()">Approve</button>
+                <button type="button" class="btn btn-secondary" onclick="rejectTmdb()">Reject</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='scripts.js') }}"></script>
+{% endblock %}
