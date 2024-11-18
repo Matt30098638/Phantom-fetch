@@ -1,116 +1,214 @@
-# Phantom Fetch
+### **Media Management Flask Application Documentation**
 
-**Phantom Fetch** is an automated media downloader and organizer that integrates with various APIs and services to manage movies, TV shows, and music. With Phantom Fetch, users can set up media download requests through configuration files and authenticate with Microsoft Graph and Spotify to sync requests from emails and playlists.
+---
 
-This repository includes a `setup.py` script to automate the installation and configuration process, ensuring all dependencies, tools, and APIs are set up for seamless usage.
+#### **Project Overview**
 
-## Features
+The Media Management Flask application is a comprehensive solution for managing and processing media-related tasks. It leverages Python, Flask, and various helper libraries to interact with external services like qBittorrent, Jackett, and TMDB to provide an automated media download and management system. 
 
-- **Automated Media Downloads**: Download movies, TV shows, and music based on requests from configuration files.
-- **Microsoft Graph and Spotify Integration**: Use Microsoft Graph to fetch download requests from emails and Spotify to access playlists.
-- **Jackett and qBittorrent Integration**: Automatically searches for media using Jackett and downloads using qBittorrent.
-- **Configuration and Setup Automation**: A `setup.py` script to handle prerequisites, API authentication, and compilation into an executable file for easy usage.
-- **Executable Compilation**: Automates converting the Python scripts into a single `.exe` file for ease of distribution and use on Windows systems.
+**Key Features:**
+1. **Media Search and Downloads:** Search for torrents using Jackett and download them with qBittorrent.
+2. **Recommendations:** Automatically generate recommendations for movies, TV shows, and other media using TMDB APIs.
+3. **User Management:** Secure login and user management using Flask-Login.
+4. **Task Scheduling:** Background tasks for processing requests and recommendations using APScheduler.
+5. **Web-based Interface:** A simple and intuitive web interface for users to interact with the application.
+6. **Logging and Monitoring:** Built-in logging for tracking errors and application events.
 
-## Prerequisites
+---
 
-- **Python** 3.7 or later
-- **Git** (for cloning the repository)
-- **Jackett** (automatically installed if not detected)
-- **qBittorrent** (automatically installed if not detected)
-- **Spotify API** and **Microsoft Graph API** credentials (generated during setup)
+#### **Requirements**
 
-## Installation
+- **Operating System:** Windows (Tested on Windows Server and Windows 10/11)
+- **Python Version:** Python 3.13.x
+- **Hosting Options:**
+  - Flask development server (for testing)
+  - Waitress (for production)
+- **Database:** SQLite (default) or another SQLAlchemy-compatible database (e.g., PostgreSQL, MySQL).
 
-Clone the repository to your local machine:
+---
 
+#### **Dependencies**
+
+Install all the required dependencies using `pip` from the `requirements.txt` file:
 ```bash
-git clone https://github.com/Matt30098638/Phantom-fetch.git
-cd Phantom-fetch
+pip install -r requirements.txt
 ```
 
-Then, execute the `setup.py` file, which will:
+**Key Dependencies:**
+1. **Flask**: Web framework for building the application.
+2. **Flask-Login**: For user authentication and session management.
+3. **Flask-WTF**: For CSRF protection and form handling.
+4. **SQLAlchemy**: ORM for interacting with the database.
+5. **Flask-Migrate**: For database migrations.
+6. **APScheduler**: For background job scheduling.
+7. **qBittorrent API**: For interacting with the qBittorrent client.
+8. **Jackett API**: For torrent searching.
+9. **TMDB API**: For fetching movie and TV show data.
 
-1. Download and extract the Phantom-fetch project into `C:\Torrenter`.
-2. Install all required Python dependencies.
-3. Install **Jackett** and **qBittorrent** if they’re not already installed.
-4. Collect API keys and credentials for Microsoft Graph, Spotify, Jellyfin, and TMDb.
-5. Save configurations in `C:\Torrenter\assets\config.yaml`.
-6. Compile the project into an executable (`.exe`) file.
+---
 
-Run `setup.py`:
+#### **Configuration**
 
-```bash
-python setup.py
+All configuration is managed via the `Config` class in `config.py`:
+```python
+class Config:
+    SECRET_KEY = "your_secret_key"
+    SQLALCHEMY_DATABASE_URI = "sqlite:///media_management.db"
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    TMDB_API_KEY = "your_tmdb_api_key"
+    JACKETT_API_KEY = "your_jackett_api_key"
+    QBITTORRENT_URL = "http://127.0.0.1:8080"
+    QBITTORRENT_USERNAME = "admin"
+    QBITTORRENT_PASSWORD = "password"
 ```
 
-Follow the prompts to enter API keys and credentials. This will set up the environment and create the final executable in the `dist` folder.
+Update the `Config` class with your API keys and service configurations before running the application.
 
-## Configuration
+---
 
-The primary configuration file is `config.yaml`, located in `C:\Torrenter\assets\`. `setup.py` creates and populates this file with your provided API keys and service configurations. This file includes:
+#### **How to Run the Application**
 
-- **Jellyfin API Key** and **Server URL**
-- **qBittorrent Host, Username, and Password**
-- **TMDb API Key** for retrieving media metadata
-- **Microsoft Graph and Spotify Authentication** for fetching email and playlist requests
+1. **Clone the Repository**
+   ```bash
+   git clone https://your-repo-url.git
+   cd Media_management
+   ```
 
-The setup script configures these values during the installation, but you can edit them manually if needed.
+2. **Set up a Virtual Environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # For Linux/macOS
+   venv\Scripts\activate     # For Windows
+   ```
 
-## Usage
+3. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Once setup is complete and the executable is created:
+4. **Set Up the Database**
+   ```bash
+   flask db init
+   flask db migrate -m "Initial migration."
+   flask db upgrade
+   ```
 
-1. Run the executable from the `dist` folder.
-2. Phantom Fetch will start monitoring requests in emails (Microsoft Graph) and Spotify playlists.
-3. Download requests will automatically search Jackett for available torrents and download them via qBittorrent.
-4. After downloads complete, media files are organized according to their type (movies, TV shows, or music) and stored in their respective directories.
+5. **Run the Application**
+   For development:
+   ```bash
+   flask run --host=0.0.0.0 --port=5000
+   ```
 
-## How It Works
+   For production (Waitress):
+   ```bash
+   waitress-serve --host=0.0.0.0 --port=5000 app:create_app
+   ```
 
-1. **Setup**: `setup.py` installs dependencies, downloads and sets up Jackett and qBittorrent, and collects API credentials. It then compiles the project into an executable.
-2. **API Integrations**: Uses Microsoft Graph to fetch requests from emails, Spotify to read playlists, and TMDb to retrieve media metadata.
-3. **Media Search and Download**: Sends search requests through Jackett, retrieves torrents, and downloads them using qBittorrent.
-4. **Media Organization**: Organizes downloaded media files in directories based on type, using predefined structure.
+6. **Access the Application**
+   Open your browser and navigate to `http://127.0.0.1:5000`.
 
-## Project Structure
+---
 
+#### **Application Functionality**
+
+1. **Dashboard**
+   - Provides an overview of the application and key actions.
+
+2. **Media Management**
+   - Search for torrents using Jackett.
+   - Download media files via qBittorrent.
+
+3. **Recommendations**
+   - Fetch personalized media recommendations from TMDB.
+   - Mark recommendations as ignored or accepted.
+
+4. **Requests**
+   - Manage media download requests (e.g., movies, TV shows).
+   - Process pending requests.
+
+5. **Background Tasks**
+   - Automated scheduling for:
+     - Generating daily recommendations.
+     - Processing pending requests.
+
+6. **User Authentication**
+   - Secure login/logout functionality using Flask-Login.
+
+---
+
+#### **File Structure**
+
+```plaintext
+Media_management/
+│
+├── app/
+│   ├── __init__.py         # App factory and initialization
+│   ├── models.py           # Database models
+│   ├── routes/             # Blueprints for application routes
+│   │   ├── auth_routes.py
+│   │   ├── web_routes.py
+│   │   ├── jellyfin_routes.py
+│   │   └── request_processing_routes.py
+│   ├── templates/          # HTML templates for Flask
+│   ├── static/             # Static files (CSS, JS, images)
+│   └── helpers/            # Helper modules for Jackett, TMDB, etc.
+│
+├── config.py               # Application configuration
+├── requirements.txt        # Python dependencies
+├── run.py                  # Main entry point for Flask
+├── logs/                   # Logs directory
+└── migrations/             # Database migration files
 ```
-Phantom-fetch/
-├── assets/
-│   └── config.yaml        # Configuration file (generated during setup)
-├── main.py                # Main execution file (compiled into .exe)
-├── setup.py               # Setup script for installation and configuration
-└── README.md              # Project documentation
+
+---
+
+#### **Logging**
+
+Logs are stored in the `logs/` directory. The app uses a `RotatingFileHandler` to manage log files, ensuring they don't grow too large.
+
+Example configuration:
+```python
+LOG_DIR = "./logs"
+LOG_FILE = os.path.join(LOG_DIR, "app.log")
 ```
 
-## Requirements
+Logs include:
+- Scheduler task logs.
+- Application errors.
+- Successful or failed requests to external APIs.
 
-This project requires the following dependencies (automatically installed by `setup.py`):
+---
 
-- `requests`
-- `qbittorrent-api`
-- `msal`
-- `beautifulsoup4`
-- `pyyaml`
-- `spotipy`
-- `pyinstaller`
+#### **Use Cases**
 
-## Notes
+1. **Media Enthusiasts:**
+   Automates the process of discovering, downloading, and organizing movies and TV shows.
 
-- **Windows Compatibility**: This project primarily targets Windows systems. Automated Jackett and qBittorrent installation currently supports Windows. For Linux/macOS, you may need to install these tools manually.
-- **Security**: Ensure all API keys and tokens are stored securely and not shared publicly.
+2. **Home Media Servers:**
+   Can be integrated with media servers like Plex or Jellyfin to manage content libraries.
 
-## Troubleshooting
+3. **Efficient Torrent Management:**
+   Combines the power of Jackett and qBittorrent for streamlined torrent searches and downloads.
 
-- **Dependency Installation Issues**: If Python dependencies fail to install, ensure Python is added to your system path and that you have a stable internet connection.
-- **API Authentication Failures**: Verify that all API credentials are correct and that the necessary permissions (scopes) are granted.
-- **qBittorrent Manual Installation**: If qBittorrent fails to install automatically, download it from [qBittorrent's website](https://www.qbittorrent.org/download.php) and install it manually.
+---
 
-## License
+#### **Future Improvements**
 
-This project is licensed under the MIT License.
+1. **Docker Support:**
+   Add Docker configurations for easier deployment.
 
-## Author
+2. **Scalability:**
+   Transition to PostgreSQL for larger datasets.
 
-Developed by [Matt Palmer](https://github.com/Matt30098638).
+3. **Improved User Interface:**
+   Enhance the web interface for a better user experience.
+
+4. **Notifications:**
+   Add email or push notifications for completed downloads or updates.
+
+5. **Custom Media Organization:**
+   Provide advanced options for organizing media into specific folder structures.
+
+---
+
+This documentation provides a detailed guide to setting up and using the Media Management Flask app. If you have further questions or run into issues, feel free to ask!
