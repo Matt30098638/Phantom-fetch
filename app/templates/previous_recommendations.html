@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Past Recommendations</h1>
+
+{% if past_recommendations %}
+    <table>
+        <tr>
+            <th>Original Media Title</th>
+            <th>Related Media Title</th>
+            <th>Media Type</th>
+            <th>Description</th>
+            <th>Thumbnail</th>
+            <th>Sent To Email</th>
+            <th>Sent At</th>
+        </tr>
+        {% for rec in past_recommendations %}
+        <tr>
+            <td>{{ rec.media_title }}</td>
+            <td>{{ rec.related_media_title }}</td>
+            <td>{{ rec.media_type }}</td>
+            <td>{{ rec.description or "N/A" }}</td>
+            <td>
+                {% if rec.thumbnail_url %}
+                <img src="{{ rec.thumbnail_url }}" alt="Thumbnail" width="100">
+                {% else %}
+                <p>No thumbnail available</p>
+                {% endif %}
+            </td>
+            <td>{{ rec.sent_to_email or "N/A" }}</td>
+            <td>{{ rec.sent_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No past recommendations found.</p>
+{% endif %}
+
+{% endblock %}
