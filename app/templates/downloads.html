@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Active Downloads</h1>
+
+<!-- Button to trigger request processing -->
+<button class="btn btn-info mb-3" onclick="window.location.href='{{ url_for('web_routes.process_requests') }}';">Process Pending Requests</button>
+
+{% if downloads %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for download in downloads %}
+            <tr id="download-{{ download.hash }}">
+                <td>{{ download.name }}</td>
+                <td id="status-{{ download.hash }}">{{ download.state }}</td>
+                <td>{{ download.progress * 100 | round(2) }}%</td>
+                <td>
+                    <button 
+                        class="btn btn-warning" 
+                        onclick="handleAction('{{ url_for('web_routes.pause_download', hash=download.hash) }}', '{{ download.hash }}', 'Paused');">
+                        Pause
+                    </button>
+                    <button 
+                        class="btn btn-success" 
+                        onclick="handleAction('{{ url_for('web_routes.resume_download', hash=download.hash) }}', '{{ download.hash }}', 'Downloading');">
+                        Resume
+                    </button>
+                    <button 
+                        class="btn btn-danger" 
+                        onclick="handleAction('{{ url_for('web_routes.remove_download', hash=download.hash) }}', '{{ download.hash }}', 'Removed');">
+                        Remove
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No active downloads.</p>
+{% endif %}
+
+<script>
+    // Get CSRF token from meta tag
+    function getCsrfToken() {
+        const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+        return csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+    }
+
+    // Handle actions like pause, resume, or remove download
+    function handleAction(url, hash, newState) {
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken() // CSRF token header
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                alert(data.message);
+                if (newState === 'Removed') {
+                    // Remove the row for the removed download
+                    document.getElementById('download-' + hash).remove();
+                } else {
+                    // Update the status of the download
+                    document.getElementById('status-' + hash).innerText = newState;
+                }
+            } else if (data.error) {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while processing the request.');
+        });
+    }
+</script>
+{% endblock %}
