@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Media Requests</h1>
+<form method="POST" action="{{ url_for('web_routes.add_request') }}">
+    <label for="title">Title:</label>
+    <input type="text" id="title" name="title" required>
+    <label for="type">Type:</label>
+    <select id="type" name="type">
+        <option value="Movie">Movie</option>
+        <option value="TV Show">TV Show</option>
+        <option value="Music">Music</option>
+    </select>
+    <button type="submit">Add Request</button>
+</form>
+
+<h2>Current Requests</h2>
+<table>
+    <tr>
+        <th>Title</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Actions</th>
+    </tr>
+    {% for request in requests %}
+    <tr>
+        <td>{{ request.title }}</td>
+        <td>{{ request.media_type }}</td>
+        <td>{{ request.status }}</td>
+        <td>
+            <a href="{{ url_for('requests.edit_request', request_id=request.id) }}">Edit</a>
+            <a href="{{ url_for('requests.delete_request', request_id=request.id) }}">Delete</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}
