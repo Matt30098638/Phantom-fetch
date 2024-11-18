@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Future Releases</h1>
+
+<h2>US Movies</h2>
+{% if us_movies %}
+<table>
+    <tr>
+        <th>Thumbnail</th>
+        <th>Title</th>
+        <th>Release Date</th>
+        <th>Description</th>
+    </tr>
+    {% for movie in us_movies %}
+    <tr>
+        <td>
+            {% if movie.thumbnail_url %}
+            <a href="{{ movie.url }}" target="_blank">
+            <img src="https://image.tmdb.org/t/p/w200{{ movie.thumbnail_url }}" alt="{{ movie.title }}" width="100">
+            </a>
+            {% else %}
+            <p>No image available</p>
+            {% endif %}
+        </td>
+        <td>{{ movie.title }}</td>
+        <td>{{ movie.release_date }}</td>
+        <td>{{ movie.overview }}</td>
+        
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No upcoming US movies found.</p>
+{% endif %}
+
+<h2>British Movies</h2>
+{% if gb_movies %}
+<table>
+    <tr>
+        <th>Thumbnail</th>
+        <th>Title</th>
+        <th>Release Date</th>
+        <th>Description</th>
+    </tr>
+    {% for movie in gb_movies %}
+    <tr>
+        <td>
+            {% if movie.thumbnail_url %}
+            <a href="{{ movie.url }}" target="_blank">
+            <img src="https://image.tmdb.org/t/p/w200{{ movie.thumbnail_url }}" alt="{{ movie.title }}" width="100">
+        </a>
+            {% else %}
+            <p>No image available</p>
+            {% endif %}
+        </td>
+        <td>{{ movie.title }}</td>
+        <td>{{ movie.release_date }}</td>
+        <td>{{ movie.overview }}</td>
+       
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No upcoming British movies found.</p>
+{% endif %}
+
+<h2>British TV Shows</h2>
+{% if gb_tv_shows %}
+<table>
+    <tr>
+        <th>Thumbnail</th>
+        <th>Title</th>
+        <th>Release Date</th>
+        <th>Description</th>
+    </tr>
+    {% for show in gb_tv_shows %}
+    <tr>
+        <td>
+            {% if show.thumbnail_url %}
+            <a href="{{ show.url }}" target="_blank">
+                <img src="https://image.tmdb.org/t/p/w200{{ show.thumbnail_url }}" alt="{{ show.title }}" width="100">
+            </a>
+            {% else %}
+            <p>No image available</p>
+            {% endif %}
+        </td>
+        <td>{{ show.title }}</td>
+        <td>{{ show.release_date }}</td>
+        <td>{{ show.overview }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p>No upcoming British TV shows found.</p>
+{% endif %}
+
+{% endblock %}
