@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Your Library</h1>
+
+<!-- Button to trigger Jellyfin sync -->
+<button id="sync-button" class="btn btn-primary">Sync Library with Jellyfin</button>
+<p id="sync-status"></p>
+
+<!-- Display the library items -->
+<h2>Movies</h2>
+{% if movies %}
+    <ul>
+    {% for movie in movies %}
+        <li>{{ movie.title }}</li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No movies in your library yet.</p>
+{% endif %}
+
+<h2>TV Shows</h2>
+{% if tv_shows %}
+    <ul>
+    {% for show in tv_shows %}
+        <li>{{ show.title }}</li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No TV shows in your library yet.</p>
+{% endif %}
+
+<h2>Music</h2>
+{% if music %}
+    <ul>
+    {% for song in music %}
+        <li>{{ song.title }}</li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No music in your library yet.</p>
+{% endif %}
+
+<script>
+    document.getElementById('sync-button').addEventListener('click', function() {
+        const syncUrl = "{{ url_for('jellyfin_routes.sync_jellyfin') }}";
+        fetch(syncUrl)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('sync-status').innerText = data.message;
+                alert(data.message);
+                location.reload(); // Reload the page to reflect updated data
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('sync-status').innerText = 'Failed to sync library.';
+                alert('Failed to sync library.');
+            });
+    });
+    </script>
+{% endblock %}
